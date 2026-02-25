@@ -2,8 +2,9 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import pandas as pd
 from collections import Counter
+import os
 
-TOKEN = "PUT_YOUR_BOT_TOKEN_HERE"
+TOKEN = os.getenv("BOT_TOKEN")
 
 messages = []
 
@@ -36,5 +37,6 @@ app.add_handler(CommandHandler("help", analysis))
 
 app.add_handler(CommandHandler("track", track_messages))
 app.add_handler(CommandHandler(None, track_messages))
+
 
 app.run_polling()
