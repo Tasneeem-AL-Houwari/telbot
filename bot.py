@@ -55,31 +55,44 @@ async def analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(report, parse_mode="Markdown")
 
 # ====== المعالج الرئيسي للرسائل ======
-async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# قائمة مؤقتة في الذاكرة للتجربة فوراً
+temp_messages = []
+
+async def handle_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
 
     user_name = update.message.from_user.full_name
     text = update.message.text
-    bot_username = (await context.bot.get_me()).username.lower()
+    
+    # حفظ في الذاكرة المؤقتة للتحليل
+    temp_messages.append({"user": user_name, "text": text})
+    save_message(user_name, text) # سيحاول الحفظ في القاعدة أيضاً
 
-    # 1. تخزين الرسالة للتحليل
-    messages_store.append({"user": user_name, "text": text})
-    # للحفاظ على الذاكرة، احفظ آخر 500 رسالة فقط
-    if len(messages_store) > 500:
-        messages_store.pop(0)
+    # الحصول على يوزر البوت
+    bot_info = await context.bot.get_me()
+    bot_username = bot_info.username.lower()
 
-    # 2. التحقق هل يجب على البوت الرد؟
-    is_reply_to_bot = update.message.reply_to_message and update.message.reply_to_message.from_user.username == context.bot.username
-    is_mentioned = f"@{bot_username}" in text.lower() or bot_username in text.lower()
+    # شروط الرد (إذا ناداه أحد، أو رد عليه، أو حتى إذا كتب كلمة "بوت")
+    is_reply_to_bot = (update.message.reply_to_message and 
+                        update.message.reply_to_message.from_user.id == bot_info.id)
+    is_mentioned = (f"@{bot_username}" in text.lower() or 
+                    "بوت" in text or 
+                    "يا ذكي" in text)
 
     if is_reply_to_bot or is_mentioned:
-        # تجهيز آخر 5 رسائل فقط كسياق للرد (لأنه يخزنها محلياً)
-        last_msgs = messages_store[-5:]
-        context_text = "\n".join([f"{m['user']}: {m['text']}" for m in last_msgs])
+        # إظهار أن البوت "يكتب الآن" ليعطيك شعور بالتفاعل
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         
-        ai_response = ask_ai(context_text)
-        await update.message.reply_text(ai_response)
+        # سياق بسيط من آخر الرسائل في الذاكرة
+        context_text = "\n".join([f"{m['user']}: {m['text']}" for m in temp_messages[-5:]])
+        
+        try:
+            ai_response = ask_ai(context_text)
+            await update.message.reply_text(ai_response)
+        except Exception as e:
+            print(f"Error calling AI: {e}")
+            await update.message.reply_text("عقلي توقف عن التفكير فجأة! 🤯")
 
 # ====== APP SETUP ======
 app = ApplicationBuilder().token(TOKEN).build()
@@ -90,3 +103,4 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messa
 
 print("البوت يعمل الآن...")
 app.run_polling()
+
