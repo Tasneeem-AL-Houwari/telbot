@@ -31,12 +31,15 @@ async def analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app = ApplicationBuilder().token(TOKEN).build()
 
+from telegram.ext import MessageHandler, filters
+
 app.add_handler(CommandHandler("analysis", analysis))
 app.add_handler(CommandHandler("start", analysis))
 app.add_handler(CommandHandler("help", analysis))
 
-app.add_handler(CommandHandler("track", track_messages))
-app.add_handler(CommandHandler(None, track_messages))
+# هذا السطر الجديد لقراءة كل الرسائل
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, track_messages))
 
 
 app.run_polling()
+
